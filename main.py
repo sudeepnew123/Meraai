@@ -1,4 +1,5 @@
 import os
+import asyncio
 from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import (
@@ -7,11 +8,11 @@ from telegram.ext import (
 )
 from collections import defaultdict
 from fastapi import FastAPI, Request
-import asyncio
+import threading
 
 # === CONFIGURATION ===
 TOKEN = "8141321315:AAEdQAi30YBrc-Kfu7puiSpoTk_rTsT6W00"
-ADMIN_ID = 6356015122  # Your Telegram ID
+ADMIN_ID = 6356015122  # Apna Telegram ID yaha dalna
 app = FastAPI()
 
 # === Message Tracking ===
@@ -108,13 +109,12 @@ bot_app.add_handler(CommandHandler("y", reply_command))
 bot_app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.TEXT, private_message))
 
 # === START ===
-if __name__ == "__main__":
-    import threading
+def start_bot():
     import uvicorn
+    asyncio.run(bot_app.initialize())
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
-    def run():
-        asyncio.run(bot_app.initialize())
-        uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
-    threading.Thread(target=run).start()
-
+if __name__ == "__main__":
+    # Running the bot and FastAPI in separate threads for proper event loop handling
+    bot_thread = threading.Thread(target=start_bot)
+    bot_thread.start()
