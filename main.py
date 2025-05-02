@@ -6,13 +6,14 @@ from telegram.ext import (
     ApplicationBuilder, ContextTypes,
     CommandHandler, MessageHandler, filters
 )
-from collections import defaultdict
 from fastapi import FastAPI, Request
+from collections import defaultdict
 import threading
+import uvicorn
 
 # === CONFIGURATION ===
 TOKEN = "8141321315:AAEdQAi30YBrc-Kfu7puiSpoTk_rTsT6W00"
-ADMIN_ID = 6356015122  # Apna Telegram ID yaha dalna
+ADMIN_ID = 6356015122  # Your Telegram ID
 app = FastAPI()
 
 # === Message Tracking ===
@@ -109,12 +110,13 @@ bot_app.add_handler(CommandHandler("y", reply_command))
 bot_app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.TEXT, private_message))
 
 # === START ===
-def start_bot():
-    import uvicorn
+def run():
     asyncio.run(bot_app.initialize())
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
 if __name__ == "__main__":
-    # Running the bot and FastAPI in separate threads for proper event loop handling
-    bot_thread = threading.Thread(target=start_bot)
-    bot_thread.start()
+    # Fix for the "RuntimeError" problem
+    if os.name == 'nt':  # Windows-specific fix
+        loop = asyncio.ProactorEventLoop()
+        asyncio.set_event_loop(loop)
+    threading.Thread(target=run).start()
