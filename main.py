@@ -1,5 +1,6 @@
 import os
 import asyncio
+import threading
 from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import (
@@ -8,7 +9,6 @@ from telegram.ext import (
 )
 from fastapi import FastAPI, Request
 from collections import defaultdict
-import threading
 import uvicorn
 
 # === CONFIGURATION ===
@@ -111,12 +111,11 @@ bot_app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.TEXT, priv
 
 # === START ===
 def run():
+    if os.name == 'nt':  # Fix for Windows if running locally (not needed on Render)
+        loop = asyncio.ProactorEventLoop()
+        asyncio.set_event_loop(loop)
     asyncio.run(bot_app.initialize())
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
 if __name__ == "__main__":
-    # Fix for the "RuntimeError" problem
-    if os.name == 'nt':  # Windows-specific fix
-        loop = asyncio.ProactorEventLoop()
-        asyncio.set_event_loop(loop)
     threading.Thread(target=run).start()
