@@ -1,14 +1,13 @@
 import os
-import asyncio
 from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import (
     ApplicationBuilder, ContextTypes,
     CommandHandler, MessageHandler, filters
 )
-from fastapi import FastAPI, Request
 from collections import defaultdict
-import uvicorn
+from fastapi import FastAPI, Request, BackgroundTasks
+import asyncio
 
 # === CONFIGURATION ===
 TOKEN = "8141321315:AAEdQAi30YBrc-Kfu7puiSpoTk_rTsT6W00"
@@ -21,6 +20,13 @@ message_counter = 1
 
 # === BOT APP ===
 bot_app = ApplicationBuilder().token(TOKEN).build()
+
+# === Bot Object with Connection Pool Size and Timeout ===
+from telegram import Bot
+
+# Increase pool size and timeout to avoid request issues
+bot = Bot(TOKEN, request_kwargs={'pool_size': 20, 'pool_timeout': 30})
+bot_app.bot = bot
 
 # === GROUP HANDLER ===
 async def group_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -93,10 +99,10 @@ async def private_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # === FASTAPI ENDPOINT ===
 @app.post("/webhook")
-async def telegram_webhook(req: Request):
+async def telegram_webhook(req: Request, background_tasks: BackgroundTasks):
     data = await req.json()
     update = Update.de_json(data, bot_app.bot)
-    await bot_app.process_update(update)
+    background_tasks.add_task(bot_app.process_update, update)
     return {"ok": True}
 
 @app.get("/")
@@ -109,10 +115,12 @@ bot_app.add_handler(CommandHandler("y", reply_command))
 bot_app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.TEXT, private_message))
 
 # === START ===
-def run():
-    # Directly use asyncio.run() to handle the bot
-    asyncio.run(bot_app.initialize())
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
 if __name__ == "__main__":
-    run()
+    import threading
+    import uvicorn
+
+    def run():
+        asyncio.run(bot_app.initialize())
+        uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+    threading.Thread(target=run).start()
