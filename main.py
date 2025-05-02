@@ -6,11 +6,11 @@ from telegram.ext import (
     CommandHandler, MessageHandler, filters
 )
 from collections import defaultdict
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 import asyncio
 
 # === CONFIGURATION ===
-TOKEN = "8141321315:AAEqAsXFevNsVIpaw6MF3j2QzSPYFOx5kS0"
+TOKEN = "8141321315:AAEdQAi30YBrc-Kfu7puiSpoTk_rTsT6W00"
 ADMIN_ID = 6356015122  # Your Telegram ID
 app = FastAPI()
 
@@ -90,7 +90,14 @@ async def private_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = msg.text
         await context.bot.send_message(chat_id=ADMIN_ID, text=f"Name: {name} (@{uname})\nMessage: {text}")
 
-# === FASTAPI KEEP-ALIVE ===
+# === FASTAPI ENDPOINT ===
+@app.post("/webhook")
+async def telegram_webhook(req: Request):
+    data = await req.json()
+    update = Update.de_json(data, bot_app.bot)
+    await bot_app.process_update(update)
+    return {"ok": True}
+
 @app.get("/")
 def root():
     return {"status": "Bot is running!"}
@@ -98,16 +105,16 @@ def root():
 # === HANDLERS ===
 bot_app.add_handler(MessageHandler(filters.ChatType.GROUPS & filters.TEXT, group_message))
 bot_app.add_handler(CommandHandler("y", reply_command))
-bot_app.add_handler(MessageHandler(filters.ChatType.PRIVATE, private_message))
+bot_app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.TEXT, private_message))
 
 # === START ===
 if __name__ == "__main__":
     import threading
-
-    def run_bot():
-        asyncio.run(bot_app.run_polling())
-
-    threading.Thread(target=run_bot).start()
-
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+    def run():
+        asyncio.run(bot_app.initialize())
+        uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+    threading.Thread(target=run).start()
+
